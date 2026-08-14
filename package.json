@@ -17,7 +17,7 @@
     "stage:lite": "node scripts/stage-portable.mjs lite",
     "stage:full": "node scripts/stage-portable.mjs full",
     "package:local": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-local-release.ps1",
-    "icons": "tauri icon branding/app-icon.svg",
+    "icons": "tauri icon branding/app-icon.png",
     "check": "npm run build && node --test tests/*.test.mjs"
   },
   "dependencies": {

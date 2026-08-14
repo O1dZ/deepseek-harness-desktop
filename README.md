@@ -6,12 +6,14 @@
 
 > 本项目是社区桌面客户端，不代表 DeepSeek 官方背书。DeepSeek Harness 当前仍处于 Developer Preview，可能发生破坏性变化。
 
+> “DeepSeek”名称及鲸鱼标志归其各自权利人所有；本项目中的兼容性描述和标志展示不表示官方授权、合作或认可。
+
 ## 两个 Edition
 
 | Edition | 适合谁 | 需要什么 | 本机实测安装包 / 便携 ZIP |
 |---|---|---|---:|
 | **Lite** | 已有开发环境的代码用户 | Node.js `^22.19.0` 或 `>=24.0.0`、npm；WebView2 | 1.06 MiB / 1.21 MiB |
-| **Full** | 希望安装后直接点击使用的用户 | WebView2；缺失时安装器自动补齐 | 51.50 MiB / 108.60 MiB |
+| **Full** | 希望安装后直接点击使用的用户 | WebView2；缺失时安装器自动补齐 | 51.49 MiB / 37.55 MiB |
 
 两个 Edition 使用相同的 Tauri 桌面壳、相同界面和相同用户数据。安装另一 Edition 会替换当前 Edition，但保留 Workspace、Task 和设置。
 
