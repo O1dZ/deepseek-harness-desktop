@@ -1,0 +1,6 @@
+{
+  "productName": "DeepSeek Harness Desktop Lite",
+  "bundle": {
+    "shortDescription": "Small desktop launcher for an existing Node.js environment"
+  }
+}

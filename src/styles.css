@@ -1,0 +1,111 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #ececeb;
+  background: #111110;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+
+button { font: inherit; }
+
+.shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(69, 102, 255, 0.12), transparent 34%),
+    #111110;
+}
+
+.titlebar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid #262624;
+  background: rgba(18, 18, 17, 0.92);
+}
+
+.brand { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; }
+.brand img { width: 22px; height: 22px; }
+.badge { padding: 2px 7px; border: 1px solid #343432; border-radius: 999px; color: #a6a6a1; font-size: 11px; }
+
+.icon-button, button {
+  color: #dadad6;
+  background: #212120;
+  border: 1px solid #353532;
+  border-radius: 8px;
+  padding: 8px 13px;
+  cursor: pointer;
+}
+
+button:hover { background: #2a2a28; border-color: #474743; }
+.icon-button { width: 32px; height: 32px; padding: 0; }
+.primary { color: white; background: #405ef5; border-color: #526df6; }
+.primary:hover { background: #4b67f6; }
+
+.content {
+  min-height: calc(100vh - 48px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 48px;
+}
+
+.hero { display: flex; align-items: center; flex-direction: column; text-align: center; }
+.logo-wrap { width: 72px; height: 72px; margin-bottom: 24px; border-radius: 22px; box-shadow: 0 16px 48px rgba(25, 55, 210, 0.25); }
+.logo-wrap img { width: 100%; height: 100%; }
+.eyebrow { margin: 0 0 10px; color: #777772; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; }
+h1 { margin: 0; font-size: 28px; letter-spacing: -0.035em; }
+.detail { max-width: 560px; min-height: 42px; margin: 12px 0 2px; color: #9a9a95; font-size: 14px; line-height: 1.55; }
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  margin: 18px 0;
+  border: 2px solid #343432;
+  border-top-color: #6d83ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.card {
+  width: min(620px, 90vw);
+  margin-top: 24px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #1a1a19;
+  border: 1px solid #30302e;
+  border-radius: 13px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+}
+
+.card strong { font-size: 14px; }
+.card p { margin: 5px 0 0; color: #888883; font-size: 12px; }
+.card.error { display: block; border-color: #56342f; }
+.card pre { max-height: 160px; margin: 12px 0; padding: 12px; overflow: auto; color: #d8a59e; background: #141110; border-radius: 8px; font: 12px/1.45 "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; }
+.actions { display: flex; gap: 8px; }
+
+.meta { position: fixed; bottom: 18px; display: flex; gap: 8px; color: #666662; font-size: 11px; }
+.dot { color: #3a3a38; }
+.hidden { display: none !important; }
+
+@media (prefers-color-scheme: light) {
+  :root { color: #242422; background: #f7f7f5; }
+  .shell { background: radial-gradient(circle at 50% 35%, rgba(69, 102, 255, 0.09), transparent 34%), #f7f7f5; }
+  .titlebar { background: rgba(250, 250, 248, 0.94); border-color: #e1e1dd; }
+  .card { background: #fff; border-color: #deded9; }
+  .card.error { border-color: #e3bbb5; }
+  .card pre { background: #fff7f5; color: #87483e; }
+  button, .icon-button { color: #33332f; background: #fff; border-color: #d5d5d0; }
+  button:hover { background: #f1f1ee; }
+  .primary, .primary:hover { color: #fff; background: #405ef5; }
+}

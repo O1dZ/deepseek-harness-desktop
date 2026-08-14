@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <title>DeepSeek Harness Desktop</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="titlebar" data-tauri-drag-region>
+        <div class="brand" data-tauri-drag-region>
+          <img src="/mark.svg" alt="" />
+          <span>DeepSeek Harness</span>
+          <span id="edition-badge" class="badge">Desktop</span>
+        </div>
+        <button id="open-settings" class="icon-button" aria-label="桌面设置" title="桌面设置">⚙</button>
+      </header>
+
+      <section class="content">
+        <div class="hero">
+          <div class="logo-wrap"><img src="/mark.svg" alt="DeepSeek Harness Desktop" /></div>
+          <p class="eyebrow">DEEPSEEK HARNESS DESKTOP</p>
+          <h1 id="status-title">正在准备工作区</h1>
+          <p id="status-detail" class="detail">正在检查 Harness Runtime…</p>
+          <div id="spinner" class="spinner" aria-label="加载中"></div>
+        </div>
+
+        <div id="workspace-card" class="card hidden">
+          <div>
+            <strong>选择 Workspace</strong>
+            <p>Harness 会在这个本地文件夹中读取文件并执行工具。</p>
+          </div>
+          <button id="choose-workspace" class="primary">选择文件夹</button>
+        </div>
+
+        <div id="error-card" class="card error hidden">
+          <div>
+            <strong>Runtime 未能启动</strong>
+            <pre id="error-message"></pre>
+          </div>
+          <div class="actions">
+            <button id="retry-runtime" class="primary">重新启动</button>
+            <button id="open-logs">打开日志</button>
+          </div>
+        </div>
+
+        <div class="meta">
+          <span id="workspace-label">尚未选择 Workspace</span>
+          <span class="dot">•</span>
+          <span id="runtime-label">等待 Runtime</span>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

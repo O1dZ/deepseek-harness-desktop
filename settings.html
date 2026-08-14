@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <title>桌面设置 · DeepSeek Harness</title>
+  </head>
+  <body class="settings-page">
+    <header class="settings-header" data-tauri-drag-region>
+      <div><img src="/mark.svg" alt="" /><strong>桌面设置</strong></div>
+      <span id="settings-edition" class="badge">Desktop</span>
+    </header>
+    <main class="settings-content">
+      <section>
+        <h2>Workspace</h2>
+        <p>应用启动时会自动恢复这个文件夹。</p>
+        <div class="field-row">
+          <input id="workspace" readonly placeholder="尚未选择" />
+          <button id="settings-choose-workspace">选择…</button>
+        </div>
+      </section>
+
+      <section id="lite-settings">
+        <h2>Lite Runtime</h2>
+        <p>留空时自动查找系统 Node.js 和全局 dsh，最后回退到固定版本 npx。</p>
+        <label>自定义 Node.js 路径<input id="custom-node" placeholder="例如 D:\\nodejs\\node.exe" /></label>
+        <label>自定义 dsh JavaScript 入口<input id="custom-dsh" placeholder="例如 ...\\@deepseek-ai\\dsh\\lib\\bin.js" /></label>
+        <label class="check"><input id="allow-unverified" type="checkbox" /> 允许未验证的 dsh 版本（不推荐）</label>
+      </section>
+
+      <section>
+        <h2>Windows</h2>
+        <label class="check"><input id="launch-at-login" type="checkbox" /> 登录后启动到系统托盘</label>
+      </section>
+
+      <section>
+        <h2>诊断</h2>
+        <p id="runtime-summary">正在读取 Runtime 状态…</p>
+        <div class="actions">
+          <button id="settings-open-logs">打开日志目录</button>
+          <button id="settings-clear-logs">清除日志</button>
+          <button id="settings-restart">重启 Runtime</button>
+        </div>
+      </section>
+
+      <footer>
+        <span id="settings-message"></span>
+        <button id="save-settings" class="primary">保存设置</button>
+      </footer>
+    </main>
+    <script type="module" src="/src/settings.js"></script>
+  </body>
+</html>

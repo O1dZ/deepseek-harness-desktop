@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [lite, full]
+    runs-on: windows-2022
+    env:
+      DSHD_REPOSITORY: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.edition }}
+      - run: npm ci
+      - name: Build ${{ matrix.edition }} edition
+        run: npm run build:${{ matrix.edition }}
+      - name: Stage release files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          $editionName = (Get-Culture).TextInfo.ToTitleCase('${{ matrix.edition }}')
+          $installer = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' | Select-Object -First 1
+          Copy-Item -LiteralPath $installer.FullName -Destination "release/DeepSeek-Harness-Desktop-$editionName-x64-Setup.exe"
+          npm run stage:${{ matrix.edition }}
+          Compress-Archive -Path "release/DeepSeek-Harness-Desktop-$editionName-x64-Portable/*" -DestinationPath "release/DeepSeek-Harness-Desktop-$editionName-x64-Portable.zip" -CompressionLevel Optimal
+          Remove-Item -LiteralPath "release/DeepSeek-Harness-Desktop-$editionName-x64-Portable" -Recurse -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.edition }}
+          path: release/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: windows-*
+          path: release
+          merge-multiple: true
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path release -File | Sort-Object Name | ForEach-Object { $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLower(); "$hash  $($_.Name)" } | Set-Content -Path release/SHA256SUMS.txt -Encoding utf8NoBOM
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" release/* --generate-notes --title "DeepSeek Harness Desktop ${GITHUB_REF_NAME}"

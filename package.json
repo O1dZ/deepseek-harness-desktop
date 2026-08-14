@@ -1,0 +1,37 @@
+{
+  "name": "deepseek-harness-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Windows desktop companion for the official DeepSeek Harness web workspace.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 1420",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev --config src-tauri/tauri.lite.conf.json",
+    "build:lite": "tauri build --config src-tauri/tauri.lite.conf.json",
+    "prepare:full": "node scripts/prepare-full-runtime.mjs",
+    "build:full": "npm run prepare:full && tauri build --features full-runtime --config src-tauri/tauri.full.conf.json",
+    "stage:lite": "node scripts/stage-portable.mjs lite",
+    "stage:full": "node scripts/stage-portable.mjs full",
+    "package:local": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-local-release.ps1",
+    "icons": "tauri icon branding/app-icon.svg",
+    "check": "npm run build && node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "extract-zip": "2.0.1",
+    "vite": "7.1.1"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  }
+}

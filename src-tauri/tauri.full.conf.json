@@ -1,0 +1,7 @@
+{
+  "productName": "DeepSeek Harness Desktop Full",
+  "bundle": {
+    "shortDescription": "Click-to-run desktop package with Node.js and DeepSeek Harness included",
+    "resources": ["resources/full-runtime/**/*"]
+  }
+}

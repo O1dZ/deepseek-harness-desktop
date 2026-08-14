@@ -1,0 +1,32 @@
+# JavaScript
+node_modules/
+dist/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+src-tauri/resources/full-runtime/
+src-tauri/icons/*
+!src-tauri/icons/32x32.png
+!src-tauri/icons/128x128.png
+!src-tauri/icons/128x128@2x.png
+!src-tauri/icons/icon.ico
+
+# Generated packages and caches
+.cache/
+.npm-cache*/
+.dsh-dev/
+release/
+*.tgz
+
+# Local state
+.env
+.env.*
+!.env.example
+*.log
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
