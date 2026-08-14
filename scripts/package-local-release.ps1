@@ -3,14 +3,16 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $release = Join-Path $root 'release'
 $nsis = Join-Path $root 'src-tauri\target\release\bundle\nsis'
+$package = Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw | ConvertFrom-Json
+$version = $package.version
 
 $artifacts = @(
     @{
-        Source = Join-Path $nsis 'DeepSeek Harness Desktop Lite_0.1.0_x64-setup.exe'
+        Source = Join-Path $nsis "DeepSeek Harness Desktop Lite_${version}_x64-setup.exe"
         Destination = Join-Path $release 'DeepSeek-Harness-Desktop-Lite-x64-Setup.exe'
     },
     @{
-        Source = Join-Path $nsis 'DeepSeek Harness Desktop Full_0.1.0_x64-setup.exe'
+        Source = Join-Path $nsis "DeepSeek Harness Desktop Full_${version}_x64-setup.exe"
         Destination = Join-Path $release 'DeepSeek-Harness-Desktop-Full-x64-Setup.exe'
     }
 )
@@ -30,10 +32,17 @@ foreach ($edition in @('Lite', 'Full')) {
     if (-not (Test-Path -LiteralPath $portableDirectory -PathType Container)) {
         throw "Missing staged portable directory: $portableDirectory"
     }
-    if (Test-Path -LiteralPath $portableArchive) {
-        Remove-Item -LiteralPath $portableArchive -Force
+    $latestPortableWrite = Get-ChildItem -LiteralPath $portableDirectory -Recurse -File |
+        Sort-Object LastWriteTimeUtc -Descending |
+        Select-Object -First 1
+    $archiveIsCurrent = (Test-Path -LiteralPath $portableArchive -PathType Leaf) -and
+        ((Get-Item -LiteralPath $portableArchive).LastWriteTimeUtc -ge $latestPortableWrite.LastWriteTimeUtc)
+    if (-not $archiveIsCurrent) {
+        if (Test-Path -LiteralPath $portableArchive) {
+            Remove-Item -LiteralPath $portableArchive -Force
+        }
+        Compress-Archive -Path (Join-Path $portableDirectory '*') -DestinationPath $portableArchive -CompressionLevel Optimal
     }
-    Compress-Archive -Path (Join-Path $portableDirectory '*') -DestinationPath $portableArchive -CompressionLevel Optimal
 }
 
 $checksumPath = Join-Path $release 'SHA256SUMS.txt'

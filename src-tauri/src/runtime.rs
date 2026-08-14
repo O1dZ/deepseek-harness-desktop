@@ -4,18 +4,19 @@ use crate::{
 };
 use anyhow::{anyhow, bail, Context, Result};
 use parking_lot::Mutex;
-use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 #[cfg(not(feature = "full-runtime"))]
 use semver::Version;
 use serde::Serialize;
+#[cfg(windows)]
+use std::os::windows::{io::AsRawHandle, process::CommandExt};
 use std::{
     collections::VecDeque,
     ffi::OsString,
     fs,
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read},
     net::{Ipv4Addr, TcpListener},
     path::{Path, PathBuf},
-    process::Command,
+    process::{Child, Command, Stdio},
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Weak,
@@ -28,6 +29,8 @@ use url::Url;
 
 pub const DSH_VERSION: &str = "0.1.0-rc.6";
 const READY_PREFIX: &str = "dsh web: http://127.0.0.1:";
+const FULL_STARTUP_TIMEOUT: Duration = Duration::from_secs(120);
+const LITE_STARTUP_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,9 +50,7 @@ pub struct ShellSnapshot {
 
 struct RuntimeProcess {
     generation: u64,
-    child: Arc<Mutex<Box<dyn Child + Send + Sync>>>,
-    writer: Arc<Mutex<Box<dyn Write + Send>>>,
-    _master: Box<dyn MasterPty + Send>,
+    child: Arc<Mutex<Child>>,
     #[cfg(windows)]
     _job: Option<win32job::Job>,
 }
@@ -189,34 +190,33 @@ impl RuntimeSupervisor {
         );
 
         fs::create_dir_all(self.paths.harness_home())?;
-        let pty_system = native_pty_system();
-        let pair = pty_system.openpty(PtySize {
-            rows: 32,
-            cols: 160,
-            pixel_width: 0,
-            pixel_height: 0,
-        })?;
+        let mut command = Command::new(invocation.program);
+        command
+            .args(invocation.args)
+            .current_dir(&workspace)
+            .env("DSH_HOME", self.paths.harness_home())
+            .env("NO_COLOR", "1")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        #[cfg(windows)]
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
 
-        let mut command = CommandBuilder::new(invocation.program);
-        command.args(invocation.args);
-        command.cwd(&workspace);
-        command.env("DSH_HOME", self.paths.harness_home());
-        command.env("NO_COLOR", "1");
-
-        let child = pair
-            .slave
-            .spawn_command(command)
-            .context("无法创建 Harness Runtime 进程")?;
-        drop(pair.slave);
-        let reader = pair.master.try_clone_reader()?;
-        let writer = pair.master.take_writer()?;
+        let mut child = command.spawn().context("无法创建 Harness Runtime 进程")?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| anyhow!("无法读取 Harness Runtime 标准输出"))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| anyhow!("无法读取 Harness Runtime 错误输出"))?;
 
         #[cfg(windows)]
-        let job = attach_kill_on_close_job(child.as_ref(), &self.log);
+        let job = attach_kill_on_close_job(&child, &self.log);
 
         let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         let child = Arc::new(Mutex::new(child));
-        let writer = Arc::new(Mutex::new(writer));
         {
             let mut data = self.data.lock();
             data.snapshot.runtime_source = Some(invocation.source);
@@ -224,15 +224,15 @@ impl RuntimeSupervisor {
             data.process = Some(RuntimeProcess {
                 generation,
                 child: child.clone(),
-                writer,
-                _master: pair.master,
                 #[cfg(windows)]
                 _job: job,
             });
         }
 
-        spawn_output_reader(Arc::downgrade(self), generation, reader);
+        spawn_output_reader(Arc::downgrade(self), generation, stdout, "runtime");
+        spawn_output_reader(Arc::downgrade(self), generation, stderr, "runtime-stderr");
         spawn_exit_monitor(Arc::downgrade(self), generation, child);
+        spawn_startup_watchdog(Arc::downgrade(self), generation);
         Ok(())
     }
 
@@ -243,21 +243,14 @@ impl RuntimeSupervisor {
 
     pub fn shutdown(&self, grace: Duration) {
         self.stopping.store(true, Ordering::SeqCst);
-        let handles = {
+        let child = {
             let data = self.data.lock();
-            data.process
-                .as_ref()
-                .map(|process| (process.child.clone(), process.writer.clone()))
+            data.process.as_ref().map(|process| process.child.clone())
         };
 
-        if let Some((child, writer)) = handles {
-            self.log
-                .write("desktop", "Requesting graceful shutdown with Ctrl+C");
-            {
-                let mut writer = writer.lock();
-                let _ = writer.write_all(&[3]);
-                let _ = writer.flush();
-            }
+        if let Some(child) = child {
+            self.log.write("desktop", "Stopping runtime process tree");
+            let _ = child.lock().kill();
             let deadline = Instant::now() + grace;
             while Instant::now() < deadline {
                 if child.lock().try_wait().ok().flatten().is_some() {
@@ -266,10 +259,8 @@ impl RuntimeSupervisor {
                 thread::sleep(Duration::from_millis(100));
             }
             if child.lock().try_wait().ok().flatten().is_none() {
-                self.log.write(
-                    "desktop",
-                    "Graceful shutdown timed out; terminating runtime job",
-                );
+                self.log
+                    .write("desktop", "Runtime process did not exit promptly");
                 let _ = child.lock().kill();
             }
         }
@@ -373,11 +364,14 @@ impl RuntimeSupervisor {
     }
 }
 
-fn spawn_output_reader(
+fn spawn_output_reader<R>(
     supervisor: Weak<RuntimeSupervisor>,
     generation: u64,
-    reader: Box<dyn std::io::Read + Send>,
-) {
+    reader: R,
+    source: &'static str,
+) where
+    R: Read + Send + 'static,
+{
     thread::spawn(move || {
         let mut reader = BufReader::new(reader);
         let mut buffer = Vec::new();
@@ -395,7 +389,7 @@ fn spawn_output_reader(
                     let Some(supervisor) = supervisor.upgrade() else {
                         break;
                     };
-                    supervisor.log.write("runtime", &clean);
+                    supervisor.log.write(source, &clean);
                     if let Some(start) = clean.find(READY_PREFIX) {
                         let url = clean[start + "dsh web: ".len()..]
                             .split_whitespace()
@@ -420,13 +414,13 @@ fn spawn_output_reader(
 fn spawn_exit_monitor(
     supervisor: Weak<RuntimeSupervisor>,
     generation: u64,
-    child: Arc<Mutex<Box<dyn Child + Send + Sync>>>,
+    child: Arc<Mutex<Child>>,
 ) {
     thread::spawn(move || loop {
         match child.lock().try_wait() {
             Ok(Some(status)) => {
                 if let Some(supervisor) = supervisor.upgrade() {
-                    supervisor.exited(generation, status.exit_code());
+                    supervisor.exited(generation, status.code().unwrap_or(1) as u32);
                 }
                 break;
             }
@@ -439,6 +433,48 @@ fn spawn_exit_monitor(
             }
         }
     });
+}
+
+fn spawn_startup_watchdog(supervisor: Weak<RuntimeSupervisor>, generation: u64) {
+    thread::spawn(move || {
+        let timeout = startup_timeout();
+        thread::sleep(timeout);
+        let Some(supervisor) = supervisor.upgrade() else {
+            return;
+        };
+        let still_starting = {
+            let data = supervisor.data.lock();
+            data.process.as_ref().map(|process| process.generation) == Some(generation)
+                && data.snapshot.runtime_url.is_none()
+        };
+        if !still_starting {
+            return;
+        }
+
+        supervisor.log.write(
+            "desktop",
+            &format!(
+                "Runtime did not report readiness within {} seconds",
+                timeout.as_secs()
+            ),
+        );
+        supervisor.shutdown(Duration::from_secs(5));
+        supervisor.fail(
+            "error",
+            format!(
+                "Harness Runtime 在 {} 秒内未报告就绪。已停止该进程；请检查日志或桌面设置。",
+                timeout.as_secs()
+            ),
+        );
+    });
+}
+
+fn startup_timeout() -> Duration {
+    if cfg!(feature = "full-runtime") {
+        FULL_STARTUP_TIMEOUT
+    } else {
+        LITE_STARTUP_TIMEOUT
+    }
 }
 
 fn resolve_invocation(_paths: &AppPaths, _settings: &DesktopSettings) -> Result<Invocation> {
@@ -517,23 +553,49 @@ fn resolve_invocation(_paths: &AppPaths, _settings: &DesktopSettings) -> Result<
 
         let npx = find_on_path("npx.cmd")
             .ok_or_else(|| anyhow!("没有找到 npx.cmd。请确认 npm 已加入 PATH。"))?;
-        let command_line = format!(
-            "\"{}\" --yes @deepseek-ai/dsh@{} web --host 127.0.0.1 --port {{PORT}}",
-            npx.display(),
-            DSH_VERSION
-        );
+        let npx_cli = find_npx_cli(&node, &npx).ok_or_else(|| {
+            anyhow!(
+                "没有找到 npm 的 npx-cli.js。请修复 Node.js/npm 安装。\nNode: {}\nNPX: {}",
+                node.display(),
+                npx.display()
+            )
+        })?;
         Ok(Invocation {
-            program: OsString::from("cmd.exe"),
-            args: vec![
-                OsString::from("/d"),
-                OsString::from("/s"),
-                OsString::from("/c"),
-                OsString::from(command_line),
-            ],
+            program: node.into_os_string(),
+            args: npx_args(npx_cli.into_os_string()),
             source: format!("npx dsh {DSH_VERSION}"),
             node_version,
         })
     }
+}
+
+#[cfg(not(feature = "full-runtime"))]
+fn find_npx_cli(node: &Path, npx: &Path) -> Option<PathBuf> {
+    [npx.parent(), node.parent()]
+        .into_iter()
+        .flatten()
+        .map(|directory| {
+            directory
+                .join("node_modules")
+                .join("npm")
+                .join("bin")
+                .join("npx-cli.js")
+        })
+        .find(|candidate| candidate.is_file())
+}
+
+#[cfg(not(feature = "full-runtime"))]
+fn npx_args(entry: OsString) -> Vec<OsString> {
+    vec![
+        entry,
+        OsString::from("--yes"),
+        OsString::from(format!("@deepseek-ai/dsh@{DSH_VERSION}")),
+        OsString::from("web"),
+        OsString::from("--host"),
+        OsString::from("127.0.0.1"),
+        OsString::from("--port"),
+        OsString::from("{PORT}"),
+    ]
 }
 
 fn dsh_args(entry: OsString) -> Vec<OsString> {
@@ -653,12 +715,9 @@ fn navigate_local_shell(app: Option<&AppHandle>) {
 }
 
 #[cfg(windows)]
-fn attach_kill_on_close_job(child: &dyn Child, log: &LocalLog) -> Option<win32job::Job> {
+fn attach_kill_on_close_job(child: &Child, log: &LocalLog) -> Option<win32job::Job> {
     let result = (|| -> Result<win32job::Job> {
-        let handle = child
-            .as_raw_handle()
-            .ok_or_else(|| anyhow!("Runtime process handle unavailable"))?
-            as isize;
+        let handle = child.as_raw_handle() as isize;
         let job = win32job::Job::create()?;
         let mut limits = job.query_extended_limit_info()?;
         limits.limit_kill_on_job_close();
@@ -700,9 +759,9 @@ pub fn inject_port(args: &mut [OsString], port: u16) {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "full-runtime"))]
-    use super::validate_node_version;
     use super::{inject_port, parse_ready_url};
+    #[cfg(not(feature = "full-runtime"))]
+    use super::{npx_args, validate_node_version, DSH_VERSION};
     use std::ffi::OsString;
 
     #[test]
@@ -719,6 +778,27 @@ mod tests {
         assert!(validate_node_version("24.0.0").is_ok());
         assert!(validate_node_version("22.18.0").is_err());
         assert!(validate_node_version("23.9.0").is_err());
+    }
+
+    #[test]
+    #[cfg(not(feature = "full-runtime"))]
+    fn invokes_npx_cli_directly_without_cmd_wrapper() {
+        let args = npx_args(OsString::from(
+            r"C:\Program Files\nodejs\node_modules\npm\bin\npx-cli.js",
+        ));
+        assert_eq!(
+            args,
+            vec![
+                OsString::from(r"C:\Program Files\nodejs\node_modules\npm\bin\npx-cli.js"),
+                OsString::from("--yes"),
+                OsString::from(format!("@deepseek-ai/dsh@{DSH_VERSION}")),
+                OsString::from("web"),
+                OsString::from("--host"),
+                OsString::from("127.0.0.1"),
+                OsString::from("--port"),
+                OsString::from("{PORT}"),
+            ]
+        );
     }
 
     #[test]

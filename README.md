@@ -12,12 +12,12 @@
 
 | Edition | 适合谁 | 需要什么 | 本机实测安装包 / 便携 ZIP |
 |---|---|---|---:|
-| **Lite** | 已有开发环境的代码用户 | Node.js `^22.19.0` 或 `>=24.0.0`、npm；WebView2 | 1.06 MiB / 1.21 MiB |
-| **Full** | 希望安装后直接点击使用的用户 | WebView2；缺失时安装器自动补齐 | 51.49 MiB / 37.55 MiB |
+| **Lite** | 已有开发环境的代码用户 | Node.js `^22.19.0` 或 `>=24.0.0`、npm；WebView2 | 1.04 MiB / 1.19 MiB |
+| **Full** | 希望安装后直接点击使用的用户 | WebView2；缺失时安装器自动补齐 | 51.48 MiB / 39.66 MiB |
 
 两个 Edition 使用相同的 Tauri 桌面壳、相同界面和相同用户数据。安装另一 Edition 会替换当前 Edition，但保留 Workspace、Task 和设置。
 
-> 以上是 0.1.0 在 Windows x64、Node 24.18.0、dsh 0.1.0-rc.6 下的实际构建值。Full 便携目录展开约 337.41 MiB；后续依赖变化会影响体积。
+> 以上是 0.1.1 在 Windows x64、Node 24.18.0、dsh 0.1.0-rc.6 下的实际构建值。Full 便携目录展开约 337.41 MiB；后续依赖变化会影响体积。
 
 ## 已实现
 
@@ -28,7 +28,7 @@
 - Lite：自定义入口 → 全局 dsh → 固定版本 npx 的解析顺序
 - Full：携带固定版本 Node.js 与 `@deepseek-ai/dsh`
 - 单实例、系统托盘、登录启动选项
-- ConPTY `Ctrl+C` 优雅关闭，5 秒后通过 Job Object 清理残留进程树
+- 标准输出/错误输出管道监控，关闭时通过 Job Object 清理完整进程树
 - Runtime 首次崩溃自动恢复，重复崩溃停止重试
 - 最多 20 MB、保留 7 天的本地诊断日志
 - 远程 Harness 页面不获得任何 Tauri IPC 权限
@@ -45,7 +45,7 @@ npm.cmd install
 npm.cmd run desktop:dev
 ```
 
-首次打开后选择 Workspace。Lite 会优先寻找全局安装的兼容 dsh；找不到时使用固定版本的 `npx`。
+首次打开后选择 Workspace。Lite 会优先寻找全局安装的兼容 dsh；找不到时使用固定版本的 `npx`。首次 npx 冷启动需要下载并解析完整依赖图，可能持续数分钟并短时占用较多内存；后续缓存启动会更快。
 
 ## 构建 Lite
 

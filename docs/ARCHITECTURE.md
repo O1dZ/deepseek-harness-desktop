@@ -24,7 +24,7 @@ flowchart LR
 
 ## Runtime lifecycle
 
-The process is launched inside ConPTY so that a real `Ctrl+C` reaches the Node.js signal handler on Windows. The supervisor waits five seconds for Harness to dispose its plugin tree. A kill-on-close Windows Job Object is the final cleanup boundary for descendants.
+The process is launched with hidden standard-output and standard-error pipes. This avoids ConPTY startup hangs observed on newer Windows builds while preserving deterministic readiness parsing. A kill-on-close Windows Job Object is the cleanup boundary for the runtime and all descendants. Closing the main window only hides it; choosing **Quit** from the tray terminates the runtime tree.
 
 The official readiness line is treated as the strong startup signal. A bound TCP port alone is insufficient because the web server can bind before the complete plugin tree is ready.
 
