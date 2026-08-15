@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "A Windows desktop companion for the official DeepSeek Harness web workspace.",
   "license": "MIT",

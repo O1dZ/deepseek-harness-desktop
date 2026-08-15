@@ -11,6 +11,21 @@ test('Full Runtime and desktop agree on the pinned dsh version', async () => {
   assert.match(rust, /DSH_VERSION: &str = "0\.1\.0-rc\.6"/);
 });
 
+test('Lite installs the same locked Runtime once instead of using npx', async () => {
+  const lock = await readJson(new URL('../runtime/full/package-lock.json', import.meta.url));
+  const rust = await readFile(new URL('../src-tauri/src/runtime.rs', import.meta.url), 'utf8');
+  assert.equal(lock.packages[''].dependencies['@deepseek-ai/dsh'], '0.1.0-rc.6');
+  assert.match(rust, /LITE_RUNTIME_LOCK/);
+  assert.match(rust, /OsString::from\("ci"\)/);
+  assert.doesNotMatch(rust, /npx-cli\.js/);
+});
+
+test('v0.1.2 release workflow publishes Lite only', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /edition:\s*\[lite\]/);
+  assert.doesNotMatch(workflow, /edition:\s*\[[^\]]*full[^\]]*\]/);
+});
+
 test('Both release editions use the same application identifier', async () => {
   const base = await readJson(new URL('../src-tauri/tauri.conf.json', import.meta.url));
   const lite = await readJson(new URL('../src-tauri/tauri.lite.conf.json', import.meta.url));

@@ -22,7 +22,7 @@ function render(state) {
 
   const needsWorkspace = state.status === 'needsWorkspace';
   const failed = state.status === 'error' || state.status === 'crashed';
-  const loading = ['starting', 'checking', 'restarting'].includes(state.status);
+  const loading = ['starting', 'checking', 'installing', 'restarting'].includes(state.status);
 
   setVisible(elements.workspaceCard, needsWorkspace);
   setVisible(elements.errorCard, failed);
@@ -38,9 +38,12 @@ function render(state) {
   } else if (state.status === 'ready') {
     elements.title.textContent = 'Harness 已就绪';
     elements.detail.textContent = '正在打开工作台…';
+  } else if (state.status === 'installing') {
+    elements.title.textContent = '正在准备 Harness Runtime';
+    elements.detail.textContent = state.detail || '首次启动正在自动安装固定 Runtime；以后将直接使用本地副本。';
   } else {
     elements.title.textContent = state.status === 'restarting' ? '正在恢复 Runtime' : '正在启动 Harness';
-    elements.detail.textContent = state.detail || '首次启动 Lite Edition 时可能需要下载 npm 依赖。';
+    elements.detail.textContent = state.detail || '正在启动固定 Harness Runtime。';
   }
 }
 

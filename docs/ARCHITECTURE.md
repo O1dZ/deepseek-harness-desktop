@@ -5,7 +5,7 @@ DeepSeek Harness Desktop is a native lifecycle supervisor around the official lo
 ```mermaid
 flowchart LR
     Icon["Windows icon"] --> Shell["Shared Tauri shell"]
-    Shell -->|Lite| External["System Node.js + compatible dsh"]
+    Shell -->|Lite| External["System Node.js + compatible or managed pinned dsh"]
     Shell -->|Full| Bundled["Bundled Node.js + pinned dsh"]
     External --> Runtime["Harness Runtime on 127.0.0.1"]
     Bundled --> Runtime
@@ -35,3 +35,5 @@ The web UI stores some preferences in `localStorage`, which is scoped by origin.
 ## Editions
 
 Lite and Full compile the same Rust and local loading UI. The `full-runtime` Cargo feature changes only Runtime resolution. Full resources are generated into `src-tauri/resources/full-runtime/` during a release build and never committed.
+
+Lite resolves a custom entry first, then a compatible global dsh, then a managed copy under app data. If the managed copy is absent, Lite uses system Node.js/npm once to run `npm ci` against the same committed package lock used to prepare Full. Installation happens in a staging directory, is version-checked, and is renamed into place only after success. Later launches execute that pinned local entry directly; they do not invoke `npx` or resolve a fresh dependency graph.

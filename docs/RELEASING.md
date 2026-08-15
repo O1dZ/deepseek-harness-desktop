@@ -2,7 +2,7 @@
 
 ## Versioning
 
-Lite and Full always share the same desktop version. The pinned Harness and portable Node.js versions are declared in source and printed in diagnostics. A Harness upgrade requires both Edition test matrices to pass.
+Lite and Full source currently share the same desktop version. The pinned Harness and portable Node.js versions are declared in source and printed in diagnostics. Full publication is temporarily disabled; v0.1.2 publishes Lite only. Restoring Full assets requires both Edition test matrices and real Windows smoke tests to pass.
 
 ## Local release checks
 
@@ -27,7 +27,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The Release workflow builds both Edition installers and portable archives, then generates `SHA256SUMS.txt` and creates the GitHub Release.
+The Release workflow currently builds only the Lite installer and portable archive, then generates `SHA256SUMS.txt` and creates the GitHub Release. Full remains in source but must not be added back to the workflow until its release validation is complete.
 
 ## Signing policy
 

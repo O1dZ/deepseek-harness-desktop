@@ -12,7 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        edition: [lite, full]
+        # Full remains in source but is intentionally not published for v0.1.2.
+        edition: [lite]
     runs-on: windows-2022
     env:
       DSHD_REPOSITORY: ${{ github.repository }}

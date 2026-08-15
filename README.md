@@ -12,12 +12,14 @@
 
 | Edition | 适合谁 | 需要什么 | 本机实测安装包 / 便携 ZIP |
 |---|---|---|---:|
-| **Lite** | 已有开发环境的代码用户 | Node.js `^22.19.0` 或 `>=24.0.0`、npm；WebView2 | 1.04 MiB / 1.19 MiB |
-| **Full** | 希望安装后直接点击使用的用户 | WebView2；缺失时安装器自动补齐 | 51.48 MiB / 39.66 MiB |
+| **Lite** | 已有开发环境的代码用户 | Node.js `^22.19.0` 或 `>=24.0.0`、npm、网络（仅首次自动准备 Runtime）；WebView2 | 约 1 MiB |
+| **Full** | 暂停发布；保留源码以便后续继续验证 | WebView2；缺失时安装器自动补齐 | 当前不提供下载 |
 
 两个 Edition 使用相同的 Tauri 桌面壳、相同界面和相同用户数据。安装另一 Edition 会替换当前 Edition，但保留 Workspace、Task 和设置。
 
-> 以上是 0.1.1 在 Windows x64、Node 24.18.0、dsh 0.1.0-rc.6 下的实际构建值。Full 便携目录展开约 337.41 MiB；后续依赖变化会影响体积。
+> **当前发布状态：** v0.1.2 只发布 Lite。Full 的源码和兼容性编译检查仍然保留，但在完成新的实机验证前不会构建、上传或作为 v0.1.2 Release 资产提供。v0.1.1 Release 已因 Lite 启动问题撤回。
+
+> Full 的历史实测值基于 0.1.1、Windows x64、Node 24.18.0 和 dsh 0.1.0-rc.6；后续依赖变化会影响体积。
 
 ## 已实现
 
@@ -25,7 +27,7 @@
 - 自动恢复上次 Workspace，首次启动显示文件夹选择器
 - 稳定的 loopback Origin，仅监听 `127.0.0.1`
 - 解析官方 stdout 就绪信号后才打开 UI
-- Lite：自定义入口 → 全局 dsh → 固定版本 npx 的解析顺序
+- Lite：自定义入口 → 兼容的全局 dsh → 自动安装并持久化的固定 Runtime
 - Full：携带固定版本 Node.js 与 `@deepseek-ai/dsh`
 - 单实例、系统托盘、登录启动选项
 - 标准输出/错误输出管道监控，关闭时通过 Job Object 清理完整进程树
@@ -45,7 +47,7 @@ npm.cmd install
 npm.cmd run desktop:dev
 ```
 
-首次打开后选择 Workspace。Lite 会优先寻找全局安装的兼容 dsh；找不到时使用固定版本的 `npx`。首次 npx 冷启动需要下载并解析完整依赖图，可能持续数分钟并短时占用较多内存；后续缓存启动会更快。
+首次打开后选择 Workspace。Lite 会优先寻找全局安装的兼容 dsh；找不到时，应用会根据随桌面版本提供的完整锁文件自动安装固定 Runtime，并在校验成功后原子切换到持久化的本地副本。首次准备可能持续数分钟并短时占用较多内存；以后双击会直接使用该副本，无需手动运行 `npx`。官方 dsh 更新只会随经过测试的新桌面版本切换，不会在启动时漂移。
 
 ## 构建 Lite
 
@@ -76,19 +78,20 @@ npm.cmd run package:local
 
 ```powershell
 npm.cmd run check
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo test --manifest-path src-tauri/Cargo.toml
 cargo check --manifest-path src-tauri/Cargo.toml --features full-runtime
 ```
 
 ## 发布
 
-推送 `v*` 标签后，GitHub Actions 会在 Windows x64 上分别构建：
+推送 `v*` 标签后，GitHub Actions 当前只构建 Windows x64 Lite：
 
 - `DeepSeek-Harness-Desktop-Lite-x64-Setup.exe`
 - `DeepSeek-Harness-Desktop-Lite-x64-Portable.zip`
-- `DeepSeek-Harness-Desktop-Full-x64-Setup.exe`
-- `DeepSeek-Harness-Desktop-Full-x64-Portable.zip`
 - `SHA256SUMS.txt`
+
+Full 的发布任务暂时停用；恢复前必须完成规定的 Full 实机启动测试，并同步更新本文档与发布工作流。
 
 首批 `.exe` 可以未签名发布，因此 Windows SmartScreen 可能显示“未知发布者”。项目预留免费开源签名流程，但不依赖收费证书。详见 [发布说明](docs/RELEASING.md)。
 

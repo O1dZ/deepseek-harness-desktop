@@ -19,10 +19,10 @@ The project is a community companion and must not imply DeepSeek endorsement. Th
 
 - Repository: <https://github.com/O1dZ/deepseek-harness-desktop>
 - Branch: `main`
-- Current desktop version: `0.1.1`
+- Current desktop version under development: `0.1.2`
 - Pinned Harness version: `@deepseek-ai/dsh@0.1.0-rc.6`
-- Latest release: <https://github.com/O1dZ/deepseek-harness-desktop/releases/tag/v0.1.1>
-- Release workflow builds Lite/Full Setup executables, Lite/Full portable ZIPs, and `SHA256SUMS.txt`.
+- Published releases: none. The broken `v0.1.1` GitHub Release was deleted on 2026-08-15; its Git tag remains for history.
+- The v0.1.2 Release workflow intentionally builds only Lite Setup/portable assets and `SHA256SUMS.txt`. Full remains in source but is paused from publication pending renewed real-machine validation.
 - The project permits unsigned `.exe` releases. SmartScreen warnings are documented; no paid signing service is required.
 
 The v0.1.1 source fixes were committed as:
@@ -61,17 +61,17 @@ Lite currently resolves the Runtime in this order:
 
 1. User-configured dsh JavaScript entry.
 2. Compatible global `@deepseek-ai/dsh` installation.
-3. Fixed-version `npx @deepseek-ai/dsh@0.1.0-rc.6` fallback.
+3. A managed, fixed-version `@deepseek-ai/dsh@0.1.0-rc.6` copy under desktop app data.
 
-The fixed-version fallback keeps the installer near 1 MB, but npm still has to resolve the package and complete the large Harness dependency graph. A cold start observed during debugging took about 4 minutes; a subsequent partially warmed start took about 40 seconds; the next cached start took about 3.3 seconds.
+If no compatible Runtime exists, Lite automatically runs system Node.js with npm's JavaScript entry and `npm ci` against the complete lock file shared with Full. It installs into a staging directory, validates the dsh version and entry, then atomically renames the result into place. The managed copy persists, so subsequent launches execute dsh directly and do not repeat `npx` dependency resolution. Users never need to run a setup command manually.
 
-For predictable Lite startup, install the pinned Runtime globally:
+The first preparation still downloads the large Harness dependency graph and can take several minutes. It has a separate 30-minute watchdog and overrides a user-level npm `offline=true` setting. Later launches use the local copy and remain pinned until a tested desktop update changes the lock file/version. A compatible global install remains an optional faster path:
 
 ```powershell
 npm.cmd install --global @deepseek-ai/dsh@0.1.0-rc.6
 ```
 
-Known future product decision: consider removing the per-launch npx fallback. For the code-oriented target audience, a missing global dsh could instead produce a clear installation prompt. Do not silently change this behavior without recording the decision and updating tests/documentation.
+This replaces the v0.1.1 per-launch fixed-version npx fallback, which was observed to spend more than 300 seconds resolving dependencies and consume about 887 MB without ever reaching readiness on the target machine.
 
 ## Windows startup incident and fix
 
@@ -110,6 +110,17 @@ Do not restore ConPTY merely to obtain graceful Ctrl+C semantics. On this target
 - Full and Lite Setup/portable assets were built and uploaded successfully.
 - Setup and portable executables were checked for `0.1.1` version metadata.
 - Repository contents were checked for API keys and other publish-blocking secrets before the public release.
+
+## Lite 0.1.2 repair verification
+
+- `npm.cmd run check` passed, including the regression test that rejects an npx fallback and requires the shared lock file.
+- Rust formatting, Lite unit tests, default compilation, and `cargo check --features full-runtime` passed.
+- A real Windows Lite cold start with no managed Runtime installed completed `npm ci` for 528 locked packages in about 14 seconds, validated and promoted the result, then parsed the official readiness line about 3 seconds later.
+- A second launch and the installed-path launch both skipped npm and reached the official readiness line in about 3 seconds.
+- Killing the test shell removed the supervised Runtime descendant and released port 7204.
+- The official Web root returned HTTP 200 and advertised the Models settings plugin; that plugin was fetched successfully and contains the API-key configuration UI.
+- The local installation at `E:\DeepSeekHarness\DeepSeek Harness Desktop Lite` was upgraded in place to 0.1.2 and launched successfully.
+- Full was compile-checked only. Its attempted local release build was cancelled at the user's direction, generated files were removed, and the v0.1.2 workflow was restricted to Lite. No 0.1.2 Full asset may be published without renewed real-machine validation.
 
 ## Packaging and size observations
 

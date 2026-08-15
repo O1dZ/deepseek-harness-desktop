@@ -23,6 +23,11 @@ impl AppPaths {
     pub fn harness_home(&self) -> PathBuf {
         self.data_dir.join("harness-home")
     }
+
+    #[cfg_attr(feature = "full-runtime", allow(dead_code))]
+    pub fn runtime_dir(&self) -> PathBuf {
+        self.data_dir.join("runtime")
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
