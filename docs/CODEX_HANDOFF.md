@@ -19,9 +19,9 @@ The project is a community companion and must not imply DeepSeek endorsement. Th
 
 - Repository: <https://github.com/O1dZ/deepseek-harness-desktop>
 - Branch: `main`
-- Current desktop version under development: `0.1.2`
+- Current desktop version: `0.1.2`
 - Pinned Harness version: `@deepseek-ai/dsh@0.1.0-rc.6`
-- Published releases: none. The broken `v0.1.1` GitHub Release was deleted on 2026-08-15; its Git tag remains for history.
+- Latest release: <https://github.com/O1dZ/deepseek-harness-desktop/releases/tag/v0.1.2> (Lite only). The broken `v0.1.1` GitHub Release was deleted on 2026-08-15; its Git tag remains for history.
 - The v0.1.2 Release workflow intentionally builds only Lite Setup/portable assets and `SHA256SUMS.txt`. Full remains in source but is paused from publication pending renewed real-machine validation.
 - The project permits unsigned `.exe` releases. SmartScreen warnings are documented; no paid signing service is required.
 
